@@ -387,6 +387,22 @@ def take_product_screenshot(url, output_filename="product_details.png"):
     except Exception as e:
         print(f"An error occurred: {e}")
     finally:
+        # Extract text before closing the browser
+        try:
+            print("Extracting page text as final step...")
+            
+            # Use the simplest possible method to get text
+            page_text = driver.find_element(By.TAG_NAME, 'body').text
+            
+            # Save to file
+            text_filename = output_filename.replace('.png', '.txt')
+            with open(text_filename, 'w', encoding='utf-8') as f:
+                f.write(page_text)
+            
+            print(f"Text saved to: {text_filename}")
+        except Exception as text_err:
+            print(f"Error saving text: {text_err}")
+        
         # Close the browser
         driver.quit()
         print("Browser closed")
