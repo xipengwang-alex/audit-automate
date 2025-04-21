@@ -1,6 +1,7 @@
 import time
 import random
 import argparse
+import os
 import undetected_chromedriver as uc
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -30,9 +31,6 @@ def take_product_screenshot(url, output_filename="product_details.png"):
     
     # Set a common user agent
     options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36')
-    
-    # Add random delays between actions to appear more human-like
-    # (We'll implement random delays during interactions)
     
     # Initialize undetected ChromeDriver
     driver = uc.Chrome(options=options)
@@ -403,15 +401,109 @@ def take_product_screenshot(url, output_filename="product_details.png"):
         except Exception as text_err:
             print(f"Error saving text: {text_err}")
         
+        # Crop the screenshot to remove bottom 1/3
+        try:
+            print("Cropping screenshot to remove bottom 1/3...")
+            
+            from PIL import Image
+            
+            # Open the image
+            img = Image.open(output_filename)
+            
+            # Get dimensions
+            width, height = img.size
+            
+            # Calculate new height (2/3 of original)
+            new_height = int(height * 2/3)
+            
+            # Crop the image (left, top, right, bottom)
+            cropped_img = img.crop((0, 0, width, new_height))
+            
+            # Save over the original file
+            cropped_img.save(output_filename)
+            
+            print(f"Screenshot cropped to remove bottom 1/3: {output_filename}")
+        except Exception as crop_err:
+            print(f"Error cropping screenshot: {crop_err}")
+        
         # Close the browser
         driver.quit()
         print("Browser closed")
 
+def process_links_from_file(input_file, output_folder="output", retries=3, delay=0):
+    """
+    Process multiple links from a file, one link per line.
+    Save outputs with sequential numbering in the specified output folder.
+    
+    Args:
+        input_file (str): Path to the file containing links (one per line)
+        output_folder (str): Folder to save outputs (will be created if doesn't exist)
+        retries (int): Number of retry attempts per link
+        delay (int): Optional delay before starting (seconds)
+    """
+    # Create output folder if it doesn't exist
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+        print(f"Created output folder: {output_folder}")
+    
+    # Optional initial delay
+    if delay > 0:
+        print(f"Waiting {delay} seconds before starting...")
+        time.sleep(delay)
+    
+    # Read links from file
+    try:
+        with open(input_file, 'r') as f:
+            links = [line.strip() for line in f if line.strip()]
+        
+        print(f"Found {len(links)} links in {input_file}")
+        
+        # Process each link
+        for i, url in enumerate(links, 1):
+            print(f"\n{'='*50}")
+            print(f"Processing link {i}/{len(links)}: {url}")
+            print(f"{'='*50}\n")
+            
+            # Define output filenames for this link
+            output_png = os.path.join(output_folder, f"link{i}.png")
+            
+            # Retry logic for each link
+            success = False
+            for attempt in range(retries):
+                try:
+                    print(f"Attempt {attempt+1} of {retries}")
+                    take_product_screenshot(url, output_png)
+                    success = True
+                    break
+                except Exception as e:
+                    print(f"Attempt {attempt+1} failed with error: {e}")
+                    if attempt < retries - 1:
+                        wait_time = 10 + (random.random() * 15)  # 10-25 second wait between retries
+                        print(f"Waiting {wait_time:.1f} seconds before next attempt...")
+                        time.sleep(wait_time)
+                    else:
+                        print("All attempts failed for this link.")
+            
+            if success:
+                print(f"Successfully processed link {i}: {url}")
+            else:
+                print(f"Failed to process link {i} after all attempts: {url}")
+                
+            # Wait between links to avoid overloading the server
+            if i < len(links):
+                wait_time = 5 + (random.random() * 10)  # 5-15 second wait between links
+                print(f"Waiting {wait_time:.1f} seconds before next link...")
+                time.sleep(wait_time)
+                
+    except Exception as e:
+        print(f"Error processing links: {e}")
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Take a screenshot of Home Depot product details")
-    parser.add_argument("url", help="The Home Depot product URL")
-    parser.add_argument("--output", "-o", default="product_details.png", 
-                        help="Output filename for the screenshot (default: product_details.png)")
+    parser = argparse.ArgumentParser(description="Take screenshots of Home Depot product details from multiple links")
+    parser.add_argument("--input-file", "-i", default="links.txt", 
+                        help="Text file with one product URL per line (default: links.txt)")
+    parser.add_argument("--output-folder", "-o", default="output", 
+                        help="Output folder for screenshots and text (default: 'output')")
     parser.add_argument("--delay", "-d", type=int, default=0,
                        help="Optional delay in seconds before starting (to allow manual proxy setup)")
     parser.add_argument("--retries", "-r", type=int, default=3,
@@ -419,29 +511,7 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    # Optional initial delay
-    if args.delay > 0:
-        print(f"Waiting {args.delay} seconds before starting...")
-        time.sleep(args.delay)
+    # Process all links from the input file
+    process_links_from_file(args.input_file, args.output_folder, args.retries, args.delay)
     
-    # Retry logic
-    success = False
-    for attempt in range(args.retries):
-        try:
-            print(f"Attempt {attempt+1} of {args.retries}")
-            take_product_screenshot(args.url, args.output)
-            success = True
-            break
-        except Exception as e:
-            print(f"Attempt {attempt+1} failed with error: {e}")
-            if attempt < args.retries - 1:
-                wait_time = 10 + (random.random() * 15)  # 10-25 second wait between retries
-                print(f"Waiting {wait_time:.1f} seconds before next attempt...")
-                time.sleep(wait_time)
-            else:
-                print("All attempts failed.")
-    
-    if success:
-        print("Screenshot successfully captured!")
-    else:
-        print("Failed to capture screenshot after all attempts.")
+    print("\nAll links have been processed!")
