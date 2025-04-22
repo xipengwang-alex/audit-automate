@@ -1,0 +1,50 @@
+**Objective:** Extract information from the provided product listing document text ONLY to populate the specified fields below. Adhere strictly to the definitions and calculations provided for each field, relying solely on the information present in the document text.
+
+**Inputs:**
+1.  A document containing the product details (e.g., text extracted from a product webpage PDF).
+
+**Output Format:**
+Provide the extracted information in a structured list format, matching these fields exactly. **Crucially, the output must *only* contain the field names and their corresponding extracted or calculated values. Do NOT include any additional notes, reasoning, explanations, or citations in the final output.**
+
+* **Link:**
+* **Category:**
+* **SKU:**
+* **Retailer:**
+* **Images Count:**
+* **Images Visible Issues?:**
+* **Video Count:**
+* **Video Visible Issues?:**
+* **A+ Content Type:**
+* **A+ Content Accuracy?:**
+* **Title Actual:**
+* **Title Accuracy?:**
+* **Bullet Point 1 Actual:**
+* **Bullet Point 1 Accuracy?:**
+* **Bullet Point 2 Actual:**
+* **Bullet Point 2 Accuracy?:**
+* **(Continue for Bullet Points 3 through 9 if present)**
+* **Description Actual:**
+* **Description Accuracy?:**
+
+**Field Definitions and Instructions:**
+
+* **Category:** Extract the most specific product category listed (e.g., from breadcrumbs).
+* **SKU:** Extract the value explicitly labeled as "Model #".
+* **Retailer:** Identify the name of the retailer/website.
+* **Images Count:** First locate the vertical list of product thumbnails on the left side clost to the top, count the number of thumbnails in that column. Then, look for a graphics like "+X" (e.g., "+7") below that list, when present. Lastly, add the two numbers for the image count. 
+* **Video Count:** Locate the vertical list of product images on the top left corner, count the number of images with a play button for video count. If none are mentioned, the count is 0.
+* **Video Visible Issues?:** Answer "Yes" or "No". Default to "No".
+* **A+ Content Type:** Examine the enhanced content section below the main description that contains generic images and words about the company ("About This Product"). If present, use "Basic". If not present, use "None".
+* **A+ Content Accuracy?:** Answer "Yes", "No", or "NA" if not present. Default to "Yes".
+* **Title Actual:** Extract the exact text of the main product title line, excluding any separate brand name listed above it.
+* **Title Accuracy?:** Answer "Yes" or "No". Default to "Yes".
+* **Bullet Points Count:** Count the total number of bullet points in the "Highlights" or equivalent section.
+* **Bullet Point X Actual:** Extract the complete text for each bullet point.
+* **Bullet Point X Accuracy?:** Answer "Yes" or "No" for each bullet point. Default to "Yes". List up to 9.
+* **Description Actual:** Extract the full text from the primary descriptive paragraph(s) ("About This Product" or similar).
+* **Description Accuracy?:** Answer "Yes" or "No". Default to "Yes".
+
+**Process:**
+1.  Analyze the provided document text ONLY.
+2.  Apply definitions and calculation rules precisely, relying solely on information found within the text.
+3.  Format the output strictly as requested: only field names and values, no extra text.

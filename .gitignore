@@ -1,5 +1,4 @@
-/node_modules
-package-lock.json
-package.json
-*.png
-*.txt
+links.txt
+__pycache__/
+/output
+.env
