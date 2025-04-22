@@ -17,7 +17,7 @@ def take_product_screenshot(url, output_filename="product_details.png"):
         output_filename (str): Filename to save the screenshot
         
     Returns:
-        tuple: (success, error_message)
+        tuple: (success, error_message, details_opened)
     """
     print(f"Navigating to: {url}")
     
@@ -27,7 +27,10 @@ def take_product_screenshot(url, output_filename="product_details.png"):
     except Exception as e:
         error_msg = f"Failed to initialize browser: {str(e)}"
         print(f"ERROR: {error_msg}")
-        return False, error_msg
+        return False, error_msg, False
+    
+    # Track if product details tab was successfully opened
+    details_opened = False
     
     try:
         # Navigate to the URL
@@ -55,23 +58,34 @@ def take_product_screenshot(url, output_filename="product_details.png"):
         print("Attempting to click Product Details tab...")
         click_details_button(driver, found_button, button_element, total_height)
         
+        # Set details_opened based on whether the button was found and clicked
+        details_opened = found_button
+        
+        if not details_opened:
+            print("WARNING: Product Details tab could not be located or clicked")
+        
+        # Wait for product details to load after clicking
+        print("Waiting for product details to expand...")
+        time.sleep(3 + (random.random() * 2))  # 3-5 second delay
+        
         # Take a full page screenshot
         screenshot_success = take_full_page_screenshot(driver, output_filename)
         if not screenshot_success:
             print("WARNING: Screenshot may not be complete")
         
-    except Exception as e:
-        error_msg = f"An error occurred during page processing: {str(e)}"
-        print(f"ERROR: {error_msg}")
-        driver.quit()
-        return False, error_msg
-    
-    try:
-        # Extract text before closing the browser
+        # IMPORTANT: Extract text AFTER product details are expanded
+        print("Extracting page text with expanded product details...")
         text_success = extract_page_text(driver, output_filename)
         if not text_success:
             print("WARNING: Text extraction may not be complete")
         
+    except Exception as e:
+        error_msg = f"An error occurred during page processing: {str(e)}"
+        print(f"ERROR: {error_msg}")
+        driver.quit()
+        return False, error_msg, details_opened
+    
+    try:
         # Crop the screenshot to remove bottom 1/3
         crop_success = crop_screenshot(output_filename)
         if not crop_success:
@@ -81,15 +95,15 @@ def take_product_screenshot(url, output_filename="product_details.png"):
         error_msg = f"Error in post-processing: {str(e)}"
         print(f"ERROR: {error_msg}")
         driver.quit()
-        return False, error_msg
+        return False, error_msg, details_opened
     finally:
         # Close the browser
         driver.quit()
         print("Browser closed")
         
-    return True, ""
+    return True, "", details_opened
 
-def process_links_from_file(input_file, output_folder="output", retries=3, delay=0):
+def process_links_from_file(input_file, output_folder="output", retries=3, delay=0, print_summary=False):
     """
     Process multiple links from a file, one link per line.
     Save outputs with sequential numbering in the specified output folder.
@@ -99,6 +113,7 @@ def process_links_from_file(input_file, output_folder="output", retries=3, delay
         output_folder (str): Folder to save outputs (will be created if doesn't exist)
         retries (int): Number of retry attempts per link
         delay (int): Optional delay before starting (seconds)
+        print_summary (bool): Whether to print and save report summary at the end
     """
     # Create output folder if it doesn't exist
     if not os.path.exists(output_folder):
@@ -130,11 +145,12 @@ def process_links_from_file(input_file, output_folder="output", retries=3, delay
             # Retry logic for each link
             success = False
             last_error = ""
+            details_opened = False
             
             for attempt in range(retries):
                 try:
                     print(f"Attempt {attempt+1} of {retries}")
-                    success, error_msg = take_product_screenshot(url, output_png)
+                    success, error_msg, details_opened = take_product_screenshot(url, output_png)
                     last_error = error_msg
                     if success:
                         break
@@ -150,7 +166,10 @@ def process_links_from_file(input_file, output_folder="output", retries=3, delay
             
             if success:
                 print(f"Successfully processed {product_id}: {url}")
-                report.pass_product(product_id)
+                if not details_opened:
+                    report.pass_product(product_id, "missing Product Details")
+                else:
+                    report.pass_product(product_id)
             else:
                 print(f"Failed to process {product_id} after all attempts: {url}")
                 report.fail_product(product_id, last_error)
@@ -164,8 +183,7 @@ def process_links_from_file(input_file, output_folder="output", retries=3, delay
     except Exception as e:
         print(f"Error processing links: {e}")
         
-    # Print the report summary
-    report.print_summary()
-    
-    # Save the report to a file
-    report.save_report(output_folder)
+    # Print the report summary only if requested
+    if print_summary:
+        report.print_summary()
+        report.save_report(output_folder)

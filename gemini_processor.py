@@ -19,7 +19,7 @@ class GeminiProcessor:
         """
         self.api_key = api_key
         genai.configure(api_key=self.api_key)
-        self.model = genai.GenerativeModel('gemini-2.5-flash-preview-04-17')
+        self.model = genai.GenerativeModel('gemini-2.5-pro-preview-03-25')
         
         # Define the expected fields in the correct order
         self.expected_fields = [
@@ -74,53 +74,92 @@ class GeminiProcessor:
         with open(text_path, "r", encoding="utf-8") as text_file:
             return text_file.read()
     
-    def _validate_and_fix_format(self, response_text: str) -> str:
+    def _clean_and_format_response(self, response_text: str) -> str:
         """
-        Validate and fix the format of the Gemini response.
+        Create a clean, properly formatted response with no duplicates.
         
         Args:
             response_text: The text response from Gemini
             
         Returns:
-            Corrected and formatted response text
+            Properly formatted response text with no duplicates
         """
-        # Check if all expected fields are present
-        missing_fields = []
+        # Create an empty dictionary to store field values
+        field_values = {field: "" for field in self.expected_fields}
+        
+        # Process field extraction manually line by line
+        lines = response_text.split('\n')
+        current_field = None
+        current_value = []
+        
+        for line in lines:
+            # Check if this line starts a new field
+            match = re.match(r'\*\*(.*?):\*\*(.*)', line)
+            
+            if match:
+                # This line starts a new field
+                field_name = match.group(1).strip()
+                field_value = match.group(2).strip()
+                
+                # If we were building a previous field, store its value
+                if current_field and current_field in self.expected_fields and current_field not in field_values:
+                    field_values[current_field] = "\n".join(current_value).strip()
+                
+                # Start tracking this new field
+                if field_name in self.expected_fields and field_name not in field_values:
+                    # This is the first occurrence of this field
+                    current_field = field_name
+                    current_value = [field_value]
+                    field_values[field_name] = field_value.strip()
+            elif current_field and current_field in field_values:
+                # This line continues the current field
+                current_value.append(line)
+                if field_values[current_field]:
+                    field_values[current_field] += "\n" + line.strip()
+                else:
+                    field_values[current_field] = line.strip()
+        
+        # Build the final formatted response with exactly one entry per field
+        result_lines = []
         for field in self.expected_fields:
-            if f"**{field}:**" not in response_text:
-                missing_fields.append(field)
+            result_lines.append(f"**{field}:** {field_values.get(field, '')}")
         
-        corrected_text = response_text
+        return "\n".join(result_lines)
+    
+    def _format_direct_response(self, response_text: str) -> str:
+        """
+        Directly format the response without parsing.
+        Simply builds a new response with all expected fields.
         
-        # If fields are missing, add them at the end with empty values
-        if missing_fields:
-            print(f"Warning: {len(missing_fields)} fields are missing in the response. Adding empty fields...")
-            for field in missing_fields:
-                corrected_text += f"\n**{field}:**"
+        Args:
+            response_text: The text response from Gemini
+            
+        Returns:
+            Properly formatted response text with all fields
+        """
+        # Build a completely new response with all fields in the correct order
+        result_lines = []
         
-        # Ensure each field is on its own line and has the correct format
-        formatted_lines = []
-        
-        # Use regex to find all field lines (including multiline values)
-        pattern = r'\*\*(.*?):\*\*(.*?)(?=\*\*\w+:\*\*|$)'
-        matches = re.findall(pattern, corrected_text, re.DOTALL)
-        
-        # Create a dictionary to store field values
+        # Extract all field values as a single step
         field_values = {}
-        for match in matches:
-            field_name = match[0].strip()
-            field_value = match[1].strip()
-            field_values[field_name] = field_value
-        
-        # Ensure all fields are present in the correct order
         for field in self.expected_fields:
-            value = field_values.get(field, "")
-            formatted_lines.append(f"**{field}:** {value}")
+            # Look for field:value pattern
+            pattern = re.compile(fr'\*\*{re.escape(field)}:\*\*\s*(.*?)(?=\*\*\w|\Z)', re.DOTALL)
+            match = pattern.search(response_text)
+            
+            if match:
+                # Get the value and clean it
+                value = match.group(1).strip()
+                field_values[field] = value
+            else:
+                # Field not found
+                field_values[field] = ""
         
-        # Join lines with newlines
-        formatted_text = "\n".join(formatted_lines)
+        # Build the result with all fields in order
+        for field in self.expected_fields:
+            result_lines.append(f"**{field}:** {field_values.get(field, '')}")
         
-        return formatted_text
+        return "\n".join(result_lines)
     
     def process_product(self, image_path: str, text_path: str, prompt_path: str, url: str = "") -> str:
         """
@@ -157,15 +196,28 @@ class GeminiProcessor:
         
         # Make the API call
         try:
+            print("Calling Gemini API...")
             response = self.model.generate_content(content)
             response_text = response.text
+            print("Response received from Gemini API")
             
-            # Validate and fix the format
-            formatted_response = self._validate_and_fix_format(response_text)
+            # Create a complete new response with all fields
+            # Use the direct formatter, which is more robust
+            formatted_response = self._format_direct_response(response_text)
             
             # Add the URL to the response if provided
-            if url and "**Link:**" in formatted_response:
+            if url:
                 formatted_response = formatted_response.replace("**Link:**", f"**Link:** {url}")
+            
+            # Verify line count matches expected field count
+            line_count = formatted_response.count('\n') + 1
+            expected_count = len(self.expected_fields)
+            print(f"Formatted response: {line_count} lines (expected: {expected_count})")
+            
+            if line_count != expected_count:
+                print("WARNING: Line count doesn't match expected field count!")
+                # This shouldn't happen with the direct formatter,
+                # but if it does, it's a serious issue
             
             return formatted_response
         except Exception as e:
@@ -173,15 +225,14 @@ class GeminiProcessor:
             print(error_msg)
             
             # Create a fallback response with empty fields
-            fallback_response = "\n".join([f"**{field}:**" for field in self.expected_fields])
-            
-            # Add the URL to the fallback response if provided
-            if url and "**Link:**" in fallback_response:
-                fallback_response = fallback_response.replace("**Link:**", f"**Link:** {url}")
+            fallback_lines = []
+            for field in self.expected_fields:
+                value = url if field == "Link" and url else ""
+                fallback_lines.append(f"**{field}:** {value}")
                 
-            return fallback_response
+            return "\n".join(fallback_lines)
 
-def process_all_products(output_folder: str, prompt_path: str, api_key: str):
+def process_all_products(output_folder: str, prompt_path: str, api_key: str, print_summary: bool = False):
     """
     Process all products in the output folder.
     
@@ -189,9 +240,11 @@ def process_all_products(output_folder: str, prompt_path: str, api_key: str):
         output_folder: Folder containing the product screenshots and text files
         prompt_path: Path to the prompt file
         api_key: Google API key for Gemini access
+        print_summary: Whether to print and save report summary at the end
     """
     # Import reporting utility
     from reporting_utils import report
+    import re
     
     # Check if output folder exists
     if not os.path.exists(output_folder):
@@ -218,7 +271,7 @@ def process_all_products(output_folder: str, prompt_path: str, api_key: str):
         return
     
     # Process each product
-    for png_file in png_files:
+    for png_file in sorted(png_files):
         # Extract product ID (e.g., "link1" from "link1.png")
         match = re.match(r'(link\d+)', png_file)
         product_id = match.group(1) if match else os.path.splitext(png_file)[0]
@@ -259,27 +312,31 @@ def process_all_products(output_folder: str, prompt_path: str, api_key: str):
         try:
             result = processor.process_product(image_path, text_path, prompt_path, url)
             
-            # Print the result
-            print("\nGemini API Result:")
+            # Print the result summary (first few fields)
+            print("\nGemini API Result Summary:")
             print(f"{'-'*30}")
-            print(result)
+            lines = result.split('\n')
+            for i in range(min(5, len(lines))):
+                print(lines[i])
+            if len(lines) > 5:
+                print("...")
+            print(f"Total lines: {len(lines)}")
             print(f"{'-'*30}")
             
-            # Save the result to a file
+            # Delete any existing analysis file before writing
             result_path = image_path.replace('.png', '_analysis.txt')
+            if os.path.exists(result_path):
+                os.remove(result_path)
+                
+            # Write the result to a file
             with open(result_path, 'w', encoding='utf-8') as f:
                 f.write(result)
             
-            print(f"Analysis saved to: {result_path}")
+            print(f"Analysis saved to: {result_path} ({len(lines)} lines)")
             
-            # Check if all required fields are present in the result
-            missing_fields = []
-            for field in processor.expected_fields:
-                if f"**{field}:**" not in result:
-                    missing_fields.append(field)
-            
-            if missing_fields:
-                error_msg = f"Missing fields in analysis: {', '.join(missing_fields)}"
+            # Verify that the result has the correct number of fields
+            if len(lines) != len(processor.expected_fields):
+                error_msg = f"Output has wrong number of lines: {len(lines)} (expected {len(processor.expected_fields)})"
                 print(f"WARNING: {error_msg}")
                 report.fail_product(product_id, error_msg)
             else:
@@ -290,8 +347,7 @@ def process_all_products(output_folder: str, prompt_path: str, api_key: str):
             print(f"ERROR: {error_msg}")
             report.fail_product(product_id, error_msg)
     
-    # Print the report summary
-    report.print_summary()
-    
-    # Save the report to a file
-    report.save_report(output_folder)
+    # Print the report summary only if requested
+    if print_summary:
+        report.print_summary()
+        report.save_report(output_folder)

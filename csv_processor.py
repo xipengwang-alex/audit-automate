@@ -147,9 +147,12 @@ class CsvProcessor:
                 
             return empty_data
     
-    def process_all_analyses(self):
+    def process_all_analyses(self, print_summary=False):
         """
         Process all analysis files and output to a CSV file.
+        
+        Args:
+            print_summary: Whether to print and save report summary at the end
         
         Returns:
             bool: Whether processing was successful
@@ -221,6 +224,12 @@ class CsvProcessor:
             
             print(f"Successfully created CSV file: {self.csv_filename}")
             print(f"CSV file also saved to: {csv_report_path}")
+            
+            # Print the report summary only if requested
+            if print_summary:
+                report.print_summary()
+                report.save_report(self.output_folder)
+                
             return True
             
         except Exception as e:
@@ -228,7 +237,7 @@ class CsvProcessor:
             return False
 
 
-def add_csv_output(output_folder="output", csv_filename="audit_results.csv", links_file="links.txt"):
+def add_csv_output(output_folder="output", csv_filename="audit_results.csv", links_file="links.txt", print_summary=False):
     """
     Process all analysis files and output to a CSV file.
     
@@ -236,6 +245,7 @@ def add_csv_output(output_folder="output", csv_filename="audit_results.csv", lin
         output_folder: Folder containing analysis text files
         csv_filename: Name of the output CSV file
         links_file: Path to the file containing product URLs (one per line)
+        print_summary: Whether to print and save report summary at the end
         
     Returns:
         bool: Whether processing was successful
@@ -248,9 +258,9 @@ def add_csv_output(output_folder="output", csv_filename="audit_results.csv", lin
     print(f"{'='*80}")
     
     processor = CsvProcessor(output_folder, csv_filename, links_file)
-    success = processor.process_all_analyses()
+    success = processor.process_all_analyses(print_summary)
     
-    if success:
+    if success and print_summary:
         report.print_summary()
         report.save_report(output_folder)
     

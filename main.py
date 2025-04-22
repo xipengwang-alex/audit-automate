@@ -45,7 +45,7 @@ def main():
     # If --csv flag is provided, only generate the CSV file
     if args.csv:
         print("\n===== GENERATING CSV FILE =====\n")
-        add_csv_output(args.output_folder, args.csv_file, args.input_file)
+        add_csv_output(args.output_folder, args.csv_file, args.input_file, print_summary=False)
         print("\nCSV generation complete!")
     # If --gemini flag is provided, run the Gemini analysis and then generate CSV
     elif args.gemini:
@@ -60,13 +60,14 @@ def main():
         process_all_products(
             args.output_folder,
             args.prompt_file,
-            api_key
+            api_key,
+            print_summary=False
         )
         print("\nAnalysis complete! All products have been processed.")
         
         # Automatically generate CSV after Gemini analysis
         print("\n===== GENERATING CSV FILE =====\n")
-        add_csv_output(args.output_folder, args.csv_file, args.input_file)
+        add_csv_output(args.output_folder, args.csv_file, args.input_file, print_summary=False)
         print("\nCSV generation complete!")
     # Otherwise, just process the links to capture screenshots
     else:
@@ -75,7 +76,8 @@ def main():
             args.input_file, 
             args.output_folder, 
             args.retries, 
-            args.delay
+            args.delay,
+            print_summary=False  # Don't print summary in the function
         )
         print("\nAll links have been processed!")
     
