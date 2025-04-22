@@ -47,6 +47,37 @@ class GeminiProcessor:
             "Description Actual",
             "Description Accuracy?",
         ])
+        
+        # Load URLs from links.txt if available
+        self.url_map = self._load_urls()
+    
+    def _load_urls(self) -> Dict[str, str]:
+        """
+        Load URLs from links.txt file.
+        
+        Returns:
+            dict: Mapping of product IDs to URLs
+        """
+        url_map = {}
+        
+        links_file = "links.txt"
+        if os.path.exists(links_file):
+            try:
+                with open(links_file, 'r') as f:
+                    lines = f.readlines()
+                
+                for i, line in enumerate(lines, 1):
+                    url = line.strip()
+                    if url:
+                        url_map[f"link{i}"] = url
+                
+                print(f"Loaded {len(url_map)} URLs from links.txt")
+            except Exception as e:
+                print(f"Error loading URLs from links.txt: {str(e)}")
+        else:
+            print("Warning: links.txt not found. URLs will not be included in analysis.")
+        
+        return url_map
     
     def _encode_image(self, image_path: str) -> str:
         """
@@ -74,65 +105,14 @@ class GeminiProcessor:
         with open(text_path, "r", encoding="utf-8") as text_file:
             return text_file.read()
     
-    def _clean_and_format_response(self, response_text: str) -> str:
-        """
-        Create a clean, properly formatted response with no duplicates.
-        
-        Args:
-            response_text: The text response from Gemini
-            
-        Returns:
-            Properly formatted response text with no duplicates
-        """
-        # Create an empty dictionary to store field values
-        field_values = {field: "" for field in self.expected_fields}
-        
-        # Process field extraction manually line by line
-        lines = response_text.split('\n')
-        current_field = None
-        current_value = []
-        
-        for line in lines:
-            # Check if this line starts a new field
-            match = re.match(r'\*\*(.*?):\*\*(.*)', line)
-            
-            if match:
-                # This line starts a new field
-                field_name = match.group(1).strip()
-                field_value = match.group(2).strip()
-                
-                # If we were building a previous field, store its value
-                if current_field and current_field in self.expected_fields and current_field not in field_values:
-                    field_values[current_field] = "\n".join(current_value).strip()
-                
-                # Start tracking this new field
-                if field_name in self.expected_fields and field_name not in field_values:
-                    # This is the first occurrence of this field
-                    current_field = field_name
-                    current_value = [field_value]
-                    field_values[field_name] = field_value.strip()
-            elif current_field and current_field in field_values:
-                # This line continues the current field
-                current_value.append(line)
-                if field_values[current_field]:
-                    field_values[current_field] += "\n" + line.strip()
-                else:
-                    field_values[current_field] = line.strip()
-        
-        # Build the final formatted response with exactly one entry per field
-        result_lines = []
-        for field in self.expected_fields:
-            result_lines.append(f"**{field}:** {field_values.get(field, '')}")
-        
-        return "\n".join(result_lines)
-    
-    def _format_direct_response(self, response_text: str) -> str:
+    def _format_direct_response(self, response_text: str, product_id: str) -> str:
         """
         Directly format the response without parsing.
         Simply builds a new response with all expected fields.
         
         Args:
             response_text: The text response from Gemini
+            product_id: Identifier for the product (e.g., "link1")
             
         Returns:
             Properly formatted response text with all fields
@@ -155,13 +135,18 @@ class GeminiProcessor:
                 # Field not found
                 field_values[field] = ""
         
+        # Add the URL directly to the field values
+        url = self.url_map.get(product_id, "")
+        if url:
+            field_values["Link"] = url
+        
         # Build the result with all fields in order
         for field in self.expected_fields:
             result_lines.append(f"**{field}:** {field_values.get(field, '')}")
         
         return "\n".join(result_lines)
     
-    def process_product(self, image_path: str, text_path: str, prompt_path: str, url: str = "") -> str:
+    def process_product(self, image_path: str, text_path: str, prompt_path: str, product_id: str) -> str:
         """
         Process a product using the image, text, and prompt.
         
@@ -169,7 +154,7 @@ class GeminiProcessor:
             image_path: Path to the product image
             text_path: Path to the extracted text file
             prompt_path: Path to the prompt file
-            url: The product URL (optional)
+            product_id: Identifier for the product (e.g., "link1")
             
         Returns:
             Gemini's response
@@ -203,11 +188,7 @@ class GeminiProcessor:
             
             # Create a complete new response with all fields
             # Use the direct formatter, which is more robust
-            formatted_response = self._format_direct_response(response_text)
-            
-            # Add the URL to the response if provided
-            if url:
-                formatted_response = formatted_response.replace("**Link:**", f"**Link:** {url}")
+            formatted_response = self._format_direct_response(response_text, product_id)
             
             # Verify line count matches expected field count
             line_count = formatted_response.count('\n') + 1
@@ -227,7 +208,11 @@ class GeminiProcessor:
             # Create a fallback response with empty fields
             fallback_lines = []
             for field in self.expected_fields:
-                value = url if field == "Link" and url else ""
+                # Add URL from url_map if available
+                if field == "Link":
+                    value = self.url_map.get(product_id, "")
+                else:
+                    value = ""
                 fallback_lines.append(f"**{field}:** {value}")
                 
             return "\n".join(fallback_lines)
@@ -290,27 +275,20 @@ def process_all_products(output_folder: str, prompt_path: str, api_key: str, pri
             report.fail_product(product_id, error_msg)
             continue
         
-        # Try to extract the URL from the text file
-        url = ""
-        try:
-            with open(text_path, 'r', encoding='utf-8') as f:
-                text_content = f.read()
-                # Look for a URL pattern typically at the beginning of the text
-                url_match = re.search(r'https?://[^\s]+', text_content)
-                if url_match:
-                    url = url_match.group(0)
-        except Exception as e:
-            print(f"Warning: Could not extract URL from text file: {str(e)}")
+        # Get URL from the processor's url_map
+        url = processor.url_map.get(product_id, "")
         
         print(f"\n{'='*50}")
         print(f"Processing product: {png_file}")
         if url:
-            print(f"URL: {url}")
+            print(f"URL (from links.txt): {url}")
+        else:
+            print("URL: Not found in links.txt")
         print(f"{'='*50}")
         
         # Process the product
         try:
-            result = processor.process_product(image_path, text_path, prompt_path, url)
+            result = processor.process_product(image_path, text_path, prompt_path, product_id)
             
             # Print the result summary (first few fields)
             print("\nGemini API Result Summary:")
