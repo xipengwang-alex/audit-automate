@@ -56,37 +56,57 @@ def update_analysis_files_with_urls(output_folder="output", links_file="links.tx
         print(f"No analysis files found in '{output_folder}'.")
         return
     
+    # Track which URLs were used
+    used_urls = set()
+    
     # Process each analysis file
     for file in analysis_files:
-        # Extract the link number prefix (e.g., "link1" from "link1_analysis.txt")
-        match = re.match(r'(link\d+)_', file)
-        if not match:
-            print(f"Could not extract link number from {file}. Skipping.")
+        try:
+            # Extract the link number prefix (e.g., "link1" from "link1_analysis.txt")
+            match = re.match(r'(link\d+)_', file)
+            if not match:
+                print(f"Could not extract link number from {file}. Skipping.")
+                continue
+            
+            link_prefix = match.group(1)
+            
+            # Get the URL for this link number
+            url = url_map.get(link_prefix)
+            if not url:
+                print(f"No URL found for {link_prefix}. Skipping.")
+                continue
+                
+            used_urls.add(link_prefix)
+            
+            file_path = os.path.join(output_folder, file)
+            print(f"Updating {file} with URL...")
+            
+            # Read the content of the file
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Replace empty Link field with the URL
+            updated_content = re.sub(r'\*\*Link:\*\*(\s*)(\n|$)', f'**Link:** {url}\\2', content)
+            
+            # Or replace an existing URL
+            if updated_content == content:
+                updated_content = re.sub(r'\*\*Link:\*\*(.*?)(\n|$)', f'**Link:** {url}\\2', content)
+            
+            # Write the updated content back to the file
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(updated_content)
+            
+            print(f"  Updated {file} with URL: {url}")
+        except Exception as e:
+            print(f"Error updating {file}: {str(e)}. Skipping this file.")
             continue
-        
-        link_prefix = match.group(1)
-        
-        # Get the URL for this link number
-        url = url_map.get(link_prefix)
-        if not url:
-            print(f"No URL found for {link_prefix}. Skipping.")
-            continue
-        
-        file_path = os.path.join(output_folder, file)
-        print(f"Updating {file} with URL...")
-        
-        # Read the content of the file
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        
-        # Replace empty Link field with the URL
-        updated_content = re.sub(r'\*\*Link:\*\*(\s*)(\n|$)', f'**Link:** {url}\\2', content)
-        
-        # Write the updated content back to the file
-        with open(file_path, 'w', encoding='utf-8') as f:
-            f.write(updated_content)
-        
-        print(f"  Updated {file} with URL: {url}")
+    
+    # Report any URLs that weren't used
+    unused_urls = set(url_map.keys()) - used_urls
+    if unused_urls:
+        print(f"\nWARNING: The following links were not used (likely processing failed):")
+        for link_key in sorted(unused_urls):
+            print(f"  {link_key}: {url_map[link_key]}")
 
 if __name__ == "__main__":
     import argparse

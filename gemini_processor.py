@@ -19,7 +19,7 @@ class GeminiProcessor:
         """
         self.api_key = api_key
         genai.configure(api_key=self.api_key)
-        self.model = genai.GenerativeModel('gemini-1.5-pro')
+        self.model = genai.GenerativeModel('gemini-2.5-pro-preview-03-25')
         
         # Define the expected fields in the correct order
         self.expected_fields = [

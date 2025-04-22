@@ -42,7 +42,7 @@ def main():
     # If --csv flag is provided, only generate the CSV file
     if args.csv:
         print("\n===== GENERATING CSV FILE =====\n")
-        add_csv_output(args.output_folder, args.csv_file)
+        add_csv_output(args.output_folder, args.csv_file, args.input_file)
         print("\nCSV generation complete!")
     # If --gemini flag is provided, run the Gemini analysis and then generate CSV
     elif args.gemini:
@@ -63,7 +63,7 @@ def main():
         
         # Automatically generate CSV after Gemini analysis
         print("\n===== GENERATING CSV FILE =====\n")
-        add_csv_output(args.output_folder, args.csv_file)
+        add_csv_output(args.output_folder, args.csv_file, args.input_file)
         print("\nCSV generation complete!")
     # Otherwise, just process the links to capture screenshots
     else:

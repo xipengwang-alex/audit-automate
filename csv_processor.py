@@ -5,18 +5,24 @@ import re
 class CsvProcessor:
     """
     Process Gemini analysis results and output to a consolidated CSV file.
+    Uses links.txt to match product URLs with their corresponding output files.
     """
     
-    def __init__(self, output_folder, csv_filename="audit_results.csv"):
+    def __init__(self, output_folder, csv_filename="audit_results.csv", links_file="links.txt"):
         """
         Initialize the CSV processor.
         
         Args:
             output_folder: Folder containing analysis text files
             csv_filename: Name of the output CSV file
+            links_file: Path to the file containing product URLs (one per line)
         """
         self.output_folder = output_folder
         self.csv_filename = os.path.join(output_folder, csv_filename)
+        self.links_file = links_file
+        
+        # Load URLs from links.txt
+        self.url_map = self._load_urls_from_file()
         
         # Define the expected fields in the correct order
         self.expected_fields = [
@@ -45,12 +51,42 @@ class CsvProcessor:
             "Description Accuracy?",
         ])
     
-    def _parse_analysis_file(self, file_path):
+    def _load_urls_from_file(self):
+        """
+        Load URLs from links.txt file.
+        
+        Returns:
+            dict: Mapping from link number (e.g., "link1") to URL
+        """
+        url_map = {}
+        
+        try:
+            if not os.path.exists(self.links_file):
+                print(f"Warning: Links file '{self.links_file}' not found.")
+                return url_map
+                
+            with open(self.links_file, 'r') as f:
+                lines = f.readlines()
+                
+            for i, line in enumerate(lines, 1):
+                url = line.strip()
+                if url:
+                    url_map[f"link{i}"] = url
+                    
+            print(f"Loaded {len(url_map)} URLs from {self.links_file}")
+            return url_map
+            
+        except Exception as e:
+            print(f"Error loading URLs from {self.links_file}: {str(e)}")
+            return url_map
+    
+    def _parse_analysis_file(self, file_path, file_name):
         """
         Parse an analysis file and extract field values.
         
         Args:
             file_path: Path to the analysis text file
+            file_name: Name of the analysis file
             
         Returns:
             dict: Parsed fields and values
@@ -62,8 +98,23 @@ class CsvProcessor:
             # Create a dictionary to store all field values
             parsed_data = {field: "" for field in self.expected_fields}
             
+            # Extract link number from file name (e.g., "link1" from "link1_analysis.txt")
+            link_match = re.match(r'(link\d+)', file_name)
+            link_key = link_match.group(1) if link_match else None
+            
+            # Set the URL based on the link number
+            if link_key and link_key in self.url_map:
+                parsed_data["Link"] = self.url_map[link_key]
+                print(f"  Matched {link_key} with URL: {self.url_map[link_key]}")
+            else:
+                print(f"  No URL match found for {file_name}")
+            
             # Extract each field value using regex
             for field in self.expected_fields:
+                if field == "Link" and parsed_data["Link"]:
+                    # Skip Link field if we already set it from url_map
+                    continue
+                    
                 # Escape special regex characters in the field name
                 escaped_field = re.escape(field)
                 
@@ -80,7 +131,21 @@ class CsvProcessor:
             
         except Exception as e:
             print(f"Error parsing {file_path}: {str(e)}")
-            return {field: "" for field in self.expected_fields}
+            # Return a dictionary with empty values in case of error
+            empty_data = {field: "" for field in self.expected_fields}
+            
+            # Try to still set the Link field if we can determine it from the filename
+            try:
+                link_match = re.match(r'(link\d+)', file_name)
+                if link_match:
+                    link_key = link_match.group(1)
+                    if link_key in self.url_map:
+                        empty_data["Link"] = self.url_map[link_key]
+                        print(f"  Set URL for {file_name} despite parsing error: {self.url_map[link_key]}")
+            except:
+                pass
+                
+            return empty_data
     
     def process_all_analyses(self):
         """
@@ -109,14 +174,18 @@ class CsvProcessor:
                 
                 # Process each analysis file
                 for file in sorted(analysis_files):
-                    file_path = os.path.join(self.output_folder, file)
-                    print(f"Processing {file}...")
-                    
-                    # Parse the analysis file
-                    parsed_data = self._parse_analysis_file(file_path)
-                    
-                    # Write to CSV
-                    writer.writerow(parsed_data)
+                    try:
+                        file_path = os.path.join(self.output_folder, file)
+                        print(f"Processing {file}...")
+                        
+                        # Parse the analysis file
+                        parsed_data = self._parse_analysis_file(file_path, file)
+                        
+                        # Write to CSV
+                        writer.writerow(parsed_data)
+                    except Exception as file_error:
+                        print(f"Error processing {file}: {str(file_error)}. Skipping this file.")
+                        continue
             
             print(f"Successfully created CSV file: {self.csv_filename}")
             return True
@@ -126,16 +195,17 @@ class CsvProcessor:
             return False
 
 
-def add_csv_output(output_folder="output", csv_filename="audit_results.csv"):
+def add_csv_output(output_folder="output", csv_filename="audit_results.csv", links_file="links.txt"):
     """
     Process all analysis files and output to a CSV file.
     
     Args:
         output_folder: Folder containing analysis text files
         csv_filename: Name of the output CSV file
+        links_file: Path to the file containing product URLs (one per line)
         
     Returns:
         bool: Whether processing was successful
     """
-    processor = CsvProcessor(output_folder, csv_filename)
+    processor = CsvProcessor(output_folder, csv_filename, links_file)
     return processor.process_all_analyses()

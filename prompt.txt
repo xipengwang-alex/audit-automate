@@ -1,6 +1,6 @@
 **Objective:** Extract information from the provided product listing document text ONLY to populate the specified fields below. Adhere strictly to the definitions and calculations provided for each field, relying solely on the information present in the document text.
 
-**IMPORTANT: Format your output EXACTLY as shown below, with each field on its own line, prefixed with the field name in double asterisks followed by a colon.**
+**IMPORTANT: Format your output EXACTLY as shown below, with each field on its own line, prefixed with the field name in double asterisks followed by the field name in double asterisks followed by a colon.**
 
 **Inputs:**
 1.  A document containing the product details (e.g., text extracted from a product webpage PDF).
@@ -47,18 +47,18 @@ Provide the extracted information in the EXACT format shown below:
 * **Category:** Extract the most specific product category listed (e.g., from breadcrumbs).
 * **SKU:** Extract the value explicitly labeled as "Model #".
 * **Retailer:** Identify the name of the retailer/website.
-* **Images Count:** First locate the vertical list of product thumbnails on the left side close to the top, count the number of thumbnails in that column. Then, look for a graphics like "+X" (e.g., "+7") below that list, when present. Lastly, add the two numbers for the image count. Only provide the numeric value (e.g., "5").
-* **Images Visible Issues?:** Answer EXACTLY "Yes" or "No". Default to "No".
-* **Video Count:** Locate the vertical list of product images on the top left corner, count the number of images with a play button for video count. If none are mentioned, the count is 0. Only provide the numeric value (e.g., "1").
-* **Video Visible Issues?:** Answer EXACTLY "Yes" or "No". Default to "No".
+* **Images Count:** First locate the vertical list of product thumbnails left of the expanded product image at the top, count the number of thumbnails in that column. Do not count the big thumbnail, a graphics like "+X", or a thumbnail with a play button (a grey circle with a white triangle). Then, look for a graphics like "+X" (e.g., "+7") below that list, when present. Lastly, add the two numbers for the image count. Only provide the numeric value (e.g., "5").
+* **Images Visible Issues?:** Evaluate and answer EXACTLY "Yes" or "No". Default to "No".
+* **Video Count:** Locate the vertical list of product images left of the expanded product image at the top, count the number of images with a play button (a grey circle with a white triangle) for video count. If none are mentioned, the count is 0. Only provide the numeric value (e.g., "1").
+* **Video Visible Issues?:** Evaluate and answer EXACTLY "Yes" or "No". Default to "No".
 * **A+ Content Type:** Examine the enhanced content section below the main description that contains generic images and words about the company ("About This Product"). If present, use EXACTLY "Basic". If not present, use EXACTLY "None".
-* **A+ Content Accuracy?:** Answer EXACTLY "Yes", "No", or "NA" if not present. Default to "Yes".
+* **A+ Content Accuracy?:** Evaluate and answer EXACTLY "Yes", "No", or "NA" if not present. Default to "Yes".
 * **Title Actual:** Extract the exact text of the main product title line, excluding any separate brand name listed above it.
-* **Title Accuracy?:** Answer EXACTLY "Yes" or "No". Default to "Yes".
-* **Bullet Point X Actual:** Extract the complete text for each bullet point. If a bullet point doesn't exist, leave the field empty.
-* **Bullet Point X Accuracy?:** Answer EXACTLY "Yes" or "No" for each bullet point. Default to "Yes". If the bullet point doesn't exist, leave the field empty.
-* **Description Actual:** Extract the full text from the primary descriptive paragraph(s) ("About This Product" or similar).
-* **Description Accuracy?:** Answer EXACTLY "Yes" or "No". Default to "Yes".
+* **Title Accuracy?:** Evaluate and answer EXACTLY "Yes" or "No". Default to "Yes".
+* **Bullet Point X Actual:** Extract the complete text for each bullet point (found in chunks under "Product Details"/"Highlights" or similar) If a bullet point doesn't exist, leave the field empty.
+* **Bullet Point X Accuracy?:** Evaluate and answer EXACTLY "Yes" or "No" for each bullet point. Default to "Yes". If the bullet point doesn't exist, leave the field empty.
+* **Description Actual:** Extract the full text from the primary descriptive paragraph(s) (found under "Product Details"/"About This Product" or similar).
+* **Description Accuracy?:** Evaluate and answer EXACTLY "Yes" or "No". Default to "Yes".
 
 **Process:**
 1.  Analyze the provided document text ONLY.
