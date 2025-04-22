@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 import argparse
 import os
+import shutil
+from datetime import datetime
 from link_processor import process_links_from_file
 from gemini_processor import process_all_products
 from csv_processor import add_csv_output
+from reporting_utils import report
 from dotenv import load_dotenv
 
 def main():
@@ -75,6 +78,29 @@ def main():
             args.delay
         )
         print("\nAll links have been processed!")
+    
+    # Print final overall report summary
+    print("\n===== FINAL REPORT SUMMARY =====\n")
+    report.print_summary()
+    report_file = report.save_report(args.output_folder)
+    print(f"\nDetailed report saved to: {report_file}")
+
+    # Create a copy of the CSV in the audit_report folder if it was generated
+    if args.csv or args.gemini:
+        try:
+            import shutil
+            csv_path = os.path.join(args.output_folder, args.csv_file)
+            audit_report_folder = os.path.join(args.output_folder, "audit_report")
+            if not os.path.exists(audit_report_folder):
+                os.makedirs(audit_report_folder)
+            
+            if os.path.exists(csv_path):
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                csv_report_path = os.path.join(audit_report_folder, f"audit_results_{timestamp}.csv")
+                shutil.copy2(csv_path, csv_report_path)
+                print(f"CSV file copied to: {csv_report_path}")
+        except Exception as e:
+            print(f"Warning: Could not copy CSV file to audit_report folder: {str(e)}")
 
 if __name__ == "__main__":
     main()

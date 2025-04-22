@@ -154,6 +154,11 @@ class CsvProcessor:
         Returns:
             bool: Whether processing was successful
         """
+        # Import reporting utility
+        from reporting_utils import report
+        import shutil
+        from datetime import datetime
+        
         # Check if output folder exists
         if not os.path.exists(self.output_folder):
             print(f"Error: Output folder '{self.output_folder}' does not exist.")
@@ -167,13 +172,20 @@ class CsvProcessor:
             return False
         
         try:
-            # Create CSV file
+            # Create CSV file in the main output folder
             with open(self.csv_filename, 'w', newline='', encoding='utf-8') as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=self.expected_fields)
                 writer.writeheader()
                 
                 # Process each analysis file
                 for file in sorted(analysis_files):
+                    # Extract product ID (e.g., "link1" from "link1_analysis.txt")
+                    match = re.match(r'(link\d+)', file)
+                    product_id = match.group(1) if match else os.path.splitext(file)[0].replace('_analysis', '')
+                    
+                    # Start product processing in report
+                    report.start_product(product_id)
+                    
                     try:
                         file_path = os.path.join(self.output_folder, file)
                         print(f"Processing {file}...")
@@ -181,13 +193,34 @@ class CsvProcessor:
                         # Parse the analysis file
                         parsed_data = self._parse_analysis_file(file_path, file)
                         
+                        # Check if Link field is filled
+                        if not parsed_data.get("Link", "").strip():
+                            print(f"  WARNING: No URL found for {product_id}")
+                        
                         # Write to CSV
                         writer.writerow(parsed_data)
+                        
+                        # Mark as passed in report
+                        report.pass_product(product_id)
+                        
                     except Exception as file_error:
-                        print(f"Error processing {file}: {str(file_error)}. Skipping this file.")
+                        error_msg = f"Error processing {file}: {str(file_error)}"
+                        print(f"  ERROR: {error_msg}")
+                        report.fail_product(product_id, error_msg)
                         continue
             
+            # Create a copy in the audit_report folder
+            report_folder = os.path.join(self.output_folder, "audit_report")
+            if not os.path.exists(report_folder):
+                os.makedirs(report_folder)
+                
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            csv_report_path = os.path.join(report_folder, f"audit_results_{timestamp}.csv")
+            
+            shutil.copy2(self.csv_filename, csv_report_path)
+            
             print(f"Successfully created CSV file: {self.csv_filename}")
+            print(f"CSV file also saved to: {csv_report_path}")
             return True
             
         except Exception as e:
@@ -207,5 +240,18 @@ def add_csv_output(output_folder="output", csv_filename="audit_results.csv", lin
     Returns:
         bool: Whether processing was successful
     """
+    # Import reporting utility
+    from reporting_utils import report
+    
+    print(f"\n{'='*80}")
+    print(f"GENERATING CSV FILE: {csv_filename}")
+    print(f"{'='*80}")
+    
     processor = CsvProcessor(output_folder, csv_filename, links_file)
-    return processor.process_all_analyses()
+    success = processor.process_all_analyses()
+    
+    if success:
+        report.print_summary()
+        report.save_report(output_folder)
+    
+    return success

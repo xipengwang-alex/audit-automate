@@ -19,7 +19,7 @@ class GeminiProcessor:
         """
         self.api_key = api_key
         genai.configure(api_key=self.api_key)
-        self.model = genai.GenerativeModel('gemini-2.5-pro-preview-03-25')
+        self.model = genai.GenerativeModel('gemini-2.5-flash-preview-04-17')
         
         # Define the expected fields in the correct order
         self.expected_fields = [
@@ -190,6 +190,9 @@ def process_all_products(output_folder: str, prompt_path: str, api_key: str):
         prompt_path: Path to the prompt file
         api_key: Google API key for Gemini access
     """
+    # Import reporting utility
+    from reporting_utils import report
+    
     # Check if output folder exists
     if not os.path.exists(output_folder):
         print(f"Error: Output folder '{output_folder}' does not exist.")
@@ -216,13 +219,22 @@ def process_all_products(output_folder: str, prompt_path: str, api_key: str):
     
     # Process each product
     for png_file in png_files:
+        # Extract product ID (e.g., "link1" from "link1.png")
+        match = re.match(r'(link\d+)', png_file)
+        product_id = match.group(1) if match else os.path.splitext(png_file)[0]
+        
+        # Start product processing in report
+        report.start_product(product_id)
+        
         # Construct the paths
         image_path = os.path.join(output_folder, png_file)
         text_path = image_path.replace('.png', '.txt')
         
         # Check if text file exists
         if not os.path.exists(text_path):
-            print(f"Warning: Text file not found for {png_file}. Skipping.")
+            error_msg = f"Text file not found for {png_file}"
+            print(f"WARNING: {error_msg}. Skipping.")
+            report.fail_product(product_id, error_msg)
             continue
         
         # Try to extract the URL from the text file
@@ -234,8 +246,8 @@ def process_all_products(output_folder: str, prompt_path: str, api_key: str):
                 url_match = re.search(r'https?://[^\s]+', text_content)
                 if url_match:
                     url = url_match.group(0)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Could not extract URL from text file: {str(e)}")
         
         print(f"\n{'='*50}")
         print(f"Processing product: {png_file}")
@@ -244,17 +256,42 @@ def process_all_products(output_folder: str, prompt_path: str, api_key: str):
         print(f"{'='*50}")
         
         # Process the product
-        result = processor.process_product(image_path, text_path, prompt_path, url)
-        
-        # Print the result
-        print("\nGemini API Result:")
-        print(f"{'-'*30}")
-        print(result)
-        print(f"{'-'*30}")
-        
-        # Save the result to a file
-        result_path = image_path.replace('.png', '_analysis.txt')
-        with open(result_path, 'w', encoding='utf-8') as f:
-            f.write(result)
-        
-        print(f"Analysis saved to: {result_path}")
+        try:
+            result = processor.process_product(image_path, text_path, prompt_path, url)
+            
+            # Print the result
+            print("\nGemini API Result:")
+            print(f"{'-'*30}")
+            print(result)
+            print(f"{'-'*30}")
+            
+            # Save the result to a file
+            result_path = image_path.replace('.png', '_analysis.txt')
+            with open(result_path, 'w', encoding='utf-8') as f:
+                f.write(result)
+            
+            print(f"Analysis saved to: {result_path}")
+            
+            # Check if all required fields are present in the result
+            missing_fields = []
+            for field in processor.expected_fields:
+                if f"**{field}:**" not in result:
+                    missing_fields.append(field)
+            
+            if missing_fields:
+                error_msg = f"Missing fields in analysis: {', '.join(missing_fields)}"
+                print(f"WARNING: {error_msg}")
+                report.fail_product(product_id, error_msg)
+            else:
+                report.pass_product(product_id)
+                
+        except Exception as e:
+            error_msg = f"Error processing with Gemini API: {str(e)}"
+            print(f"ERROR: {error_msg}")
+            report.fail_product(product_id, error_msg)
+    
+    # Print the report summary
+    report.print_summary()
+    
+    # Save the report to a file
+    report.save_report(output_folder)
