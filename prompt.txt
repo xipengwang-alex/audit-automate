@@ -1,50 +1,71 @@
 **Objective:** Extract information from the provided product listing document text ONLY to populate the specified fields below. Adhere strictly to the definitions and calculations provided for each field, relying solely on the information present in the document text.
 
+**IMPORTANT: Format your output EXACTLY as shown below, with each field on its own line, prefixed with the field name in double asterisks followed by a colon.**
+
 **Inputs:**
 1.  A document containing the product details (e.g., text extracted from a product webpage PDF).
 
 **Output Format:**
-Provide the extracted information in a structured list format, matching these fields exactly. **Crucially, the output must *only* contain the field names and their corresponding extracted or calculated values. Do NOT include any additional notes, reasoning, explanations, or citations in the final output.**
+Provide the extracted information in the EXACT format shown below:
 
-* **Link:**
-* **Category:**
-* **SKU:**
-* **Retailer:**
-* **Images Count:**
-* **Images Visible Issues?:**
-* **Video Count:**
-* **Video Visible Issues?:**
-* **A+ Content Type:**
-* **A+ Content Accuracy?:**
-* **Title Actual:**
-* **Title Accuracy?:**
-* **Bullet Point 1 Actual:**
-* **Bullet Point 1 Accuracy?:**
-* **Bullet Point 2 Actual:**
-* **Bullet Point 2 Accuracy?:**
-* **(Continue for Bullet Points 3 through 9 if present)**
-* **Description Actual:**
-* **Description Accuracy?:**
+**Link:**
+**Category:**
+**SKU:**
+**Retailer:**
+**Images Count:**
+**Images Visible Issues?:**
+**Video Count:**
+**Video Visible Issues?:**
+**A+ Content Type:**
+**A+ Content Accuracy?:**
+**Title Actual:**
+**Title Accuracy?:**
+**Bullet Point 1 Actual:**
+**Bullet Point 1 Accuracy?:**
+**Bullet Point 2 Actual:**
+**Bullet Point 2 Accuracy?:**
+**Bullet Point 3 Actual:**
+**Bullet Point 3 Accuracy?:**
+**Bullet Point 4 Actual:**
+**Bullet Point 4 Accuracy?:**
+**Bullet Point 5 Actual:**
+**Bullet Point 5 Accuracy?:**
+**Bullet Point 6 Actual:**
+**Bullet Point 6 Accuracy?:**
+**Bullet Point 7 Actual:**
+**Bullet Point 7 Accuracy?:**
+**Bullet Point 8 Actual:**
+**Bullet Point 8 Accuracy?:**
+**Bullet Point 9 Actual:**
+**Bullet Point 9 Accuracy?:**
+**Description Actual:**
+**Description Accuracy?:**
 
 **Field Definitions and Instructions:**
 
+* **Link:** Extract the URL from the page if available, or leave empty.
 * **Category:** Extract the most specific product category listed (e.g., from breadcrumbs).
 * **SKU:** Extract the value explicitly labeled as "Model #".
 * **Retailer:** Identify the name of the retailer/website.
-* **Images Count:** First locate the vertical list of product thumbnails on the left side clost to the top, count the number of thumbnails in that column. Then, look for a graphics like "+X" (e.g., "+7") below that list, when present. Lastly, add the two numbers for the image count. 
-* **Video Count:** Locate the vertical list of product images on the top left corner, count the number of images with a play button for video count. If none are mentioned, the count is 0.
-* **Video Visible Issues?:** Answer "Yes" or "No". Default to "No".
-* **A+ Content Type:** Examine the enhanced content section below the main description that contains generic images and words about the company ("About This Product"). If present, use "Basic". If not present, use "None".
-* **A+ Content Accuracy?:** Answer "Yes", "No", or "NA" if not present. Default to "Yes".
+* **Images Count:** First locate the vertical list of product thumbnails on the left side close to the top, count the number of thumbnails in that column. Then, look for a graphics like "+X" (e.g., "+7") below that list, when present. Lastly, add the two numbers for the image count. Only provide the numeric value (e.g., "5").
+* **Images Visible Issues?:** Answer EXACTLY "Yes" or "No". Default to "No".
+* **Video Count:** Locate the vertical list of product images on the top left corner, count the number of images with a play button for video count. If none are mentioned, the count is 0. Only provide the numeric value (e.g., "1").
+* **Video Visible Issues?:** Answer EXACTLY "Yes" or "No". Default to "No".
+* **A+ Content Type:** Examine the enhanced content section below the main description that contains generic images and words about the company ("About This Product"). If present, use EXACTLY "Basic". If not present, use EXACTLY "None".
+* **A+ Content Accuracy?:** Answer EXACTLY "Yes", "No", or "NA" if not present. Default to "Yes".
 * **Title Actual:** Extract the exact text of the main product title line, excluding any separate brand name listed above it.
-* **Title Accuracy?:** Answer "Yes" or "No". Default to "Yes".
-* **Bullet Points Count:** Count the total number of bullet points in the "Highlights" or equivalent section.
-* **Bullet Point X Actual:** Extract the complete text for each bullet point.
-* **Bullet Point X Accuracy?:** Answer "Yes" or "No" for each bullet point. Default to "Yes". List up to 9.
+* **Title Accuracy?:** Answer EXACTLY "Yes" or "No". Default to "Yes".
+* **Bullet Point X Actual:** Extract the complete text for each bullet point. If a bullet point doesn't exist, leave the field empty.
+* **Bullet Point X Accuracy?:** Answer EXACTLY "Yes" or "No" for each bullet point. Default to "Yes". If the bullet point doesn't exist, leave the field empty.
 * **Description Actual:** Extract the full text from the primary descriptive paragraph(s) ("About This Product" or similar).
-* **Description Accuracy?:** Answer "Yes" or "No". Default to "Yes".
+* **Description Accuracy?:** Answer EXACTLY "Yes" or "No". Default to "Yes".
 
 **Process:**
 1.  Analyze the provided document text ONLY.
 2.  Apply definitions and calculation rules precisely, relying solely on information found within the text.
-3.  Format the output strictly as requested: only field names and values, no extra text.
+3.  Format the output EXACTLY as requested above.
+4.  Do NOT include any notes, reasoning, explanations, or citations in the output.
+5.  Do NOT add any extra fields or explanatory text to the output.
+6.  If you cannot find information for a field, leave the value empty but include the field name.
+
+CRITICAL: The consistent format is essential for automated processing. Do NOT deviate from the exact field names and formatting shown above.

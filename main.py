@@ -3,6 +3,7 @@ import argparse
 import os
 from link_processor import process_links_from_file
 from gemini_processor import process_all_products
+from csv_processor import add_csv_output
 from dotenv import load_dotenv
 
 def main():
@@ -26,11 +27,25 @@ def main():
                        help="Path to the prompt file for Gemini analysis (default: 'prompt.txt')")
     parser.add_argument("--gemini", "-g", action="store_true",
                        help="Run Gemini analysis on existing files in the output folder")
+    parser.add_argument("--csv", "-c", action="store_true",
+                       help="Generate a CSV file from existing analysis files")
+    parser.add_argument("--csv-file", "-f", default="audit_results.csv",
+                       help="Name of the output CSV file (default: 'audit_results.csv')")
     
     args = parser.parse_args()
     
-    # If --gemini flag is provided, only run the Gemini analysis
-    if args.gemini:
+    # Create output folder if it doesn't exist
+    if not os.path.exists(args.output_folder):
+        os.makedirs(args.output_folder)
+        print(f"Created output folder: {args.output_folder}")
+    
+    # If --csv flag is provided, only generate the CSV file
+    if args.csv:
+        print("\n===== GENERATING CSV FILE =====\n")
+        add_csv_output(args.output_folder, args.csv_file)
+        print("\nCSV generation complete!")
+    # If --gemini flag is provided, run the Gemini analysis and then generate CSV
+    elif args.gemini:
         print("\n===== RUNNING GEMINI ANALYSIS =====\n")
         # Get API key from environment variable
         api_key = os.getenv('GEMINI_API_KEY')
@@ -45,6 +60,11 @@ def main():
             api_key
         )
         print("\nAnalysis complete! All products have been processed.")
+        
+        # Automatically generate CSV after Gemini analysis
+        print("\n===== GENERATING CSV FILE =====\n")
+        add_csv_output(args.output_folder, args.csv_file)
+        print("\nCSV generation complete!")
     # Otherwise, just process the links to capture screenshots
     else:
         print("\n===== CAPTURING SCREENSHOTS =====\n")

@@ -2,3 +2,4 @@ links.txt
 __pycache__/
 /output
 .env
+.repoignore
