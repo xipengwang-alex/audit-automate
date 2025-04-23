@@ -1,3 +1,4 @@
+# c:\Users\wangx\Dropbox\Purdue\APEC Water\audit-automate\link_processor.py
 import os
 import time
 import random
@@ -6,6 +7,7 @@ from details_finder import find_product_details_button, click_details_button
 from screenshot_manager import take_full_page_screenshot, extract_page_text
 from image_utils import crop_screenshot
 from reporting_utils import report
+from typing import List, Optional # Import typing helpers
 
 def take_product_screenshot(url, output_filename="product_details.png"):
     """
@@ -103,67 +105,104 @@ def take_product_screenshot(url, output_filename="product_details.png"):
         
     return True, "", details_opened
 
-def process_links_from_file(input_file, output_folder="output", retries=3, delay=0, print_summary=False):
+def process_links_from_file(
+    input_file: str,
+    output_folder: str = "output",
+    retries: int = 3,
+    delay: int = 0,
+    print_summary: bool = False,
+    selected_indices: Optional[List[int]] = None # Add selected_indices parameter
+):
     """
     Process multiple links from a file, one link per line.
     Save outputs with sequential numbering in the specified output folder.
-    
+    Optionally processes only selected links based on their 1-based index.
+
     Args:
         input_file (str): Path to the file containing links (one per line)
         output_folder (str): Folder to save outputs (will be created if doesn't exist)
         retries (int): Number of retry attempts per link
         delay (int): Optional delay before starting (seconds)
         print_summary (bool): Whether to print and save report summary at the end
+        selected_indices (Optional[List[int]]): List of 1-based link indices to process.
+                                                 If None or empty, process all links.
     """
     # Create output folder if it doesn't exist
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
         print(f"Created output folder: {output_folder}")
-    
+
     # Optional initial delay
     if delay > 0:
         print(f"Waiting {delay} seconds before starting...")
         time.sleep(delay)
-    
+
     # Read links from file
     try:
         with open(input_file, 'r') as f:
             links = [line.strip() for line in f if line.strip()]
-        
+
         print(f"Found {len(links)} links in {input_file}")
-        
+        if not links:
+            print("Input file is empty. No links to process.")
+            return
+
+        processed_count = 0
         # Process each link
         for i, url in enumerate(links, 1):
+            # --- Selection Check ---
+            if selected_indices and i not in selected_indices:
+                # print(f"Skipping link {i} (not in selection {selected_indices})") # Optional verbose logging
+                continue # Skip this link if selection is active and index doesn't match
+            # --- End Selection Check ---
+
+            processed_count += 1
             product_id = f"link{i}"
-            report.start_product(product_id)
-            
-            print(f"\nProcessing {product_id}: {url}")
-            
+            # report.start_product(product_id) # Moved start_product call below, after check
+
+            print(f"\nProcessing {product_id} (Link #{i}): {url}")
+            report.start_product(product_id) # Start reporting *after* selection check
+
             # Define output filenames for this link
             output_png = os.path.join(output_folder, f"{product_id}.png")
-            
+
             # Retry logic for each link
             success = False
             last_error = ""
             details_opened = False
-            
+
             for attempt in range(retries):
                 try:
                     print(f"Attempt {attempt+1} of {retries}")
                     success, error_msg, details_opened = take_product_screenshot(url, output_png)
                     last_error = error_msg
                     if success:
-                        break
+                        break # Exit retry loop on success
                 except Exception as e:
                     last_error = f"Attempt {attempt+1} failed with error: {str(e)}"
                     print(last_error)
+                    # Clean up potentially corrupted files from failed attempt
+                    if os.path.exists(output_png):
+                        try:
+                            os.remove(output_png)
+                            print(f"  Removed potentially incomplete file: {output_png}")
+                        except OSError as rm_err:
+                             print(f"  Warning: Could not remove incomplete file {output_png}: {rm_err}")
+                    txt_file = output_png.replace('.png', '.txt')
+                    if os.path.exists(txt_file):
+                         try:
+                            os.remove(txt_file)
+                            print(f"  Removed potentially incomplete file: {txt_file}")
+                         except OSError as rm_err:
+                             print(f"  Warning: Could not remove incomplete file {txt_file}: {rm_err}")
+
                     if attempt < retries - 1:
-                        wait_time = 10 + (random.random() * 15)  # 10-25 second wait between retries
+                        wait_time = 10 + (random.random() * 15) # 10-25 second wait between retries
                         print(f"Waiting {wait_time:.1f} seconds before next attempt...")
                         time.sleep(wait_time)
-                    else:
-                        print("All attempts failed for this link.")
-            
+                # No explicit else needed here, loop continues or finishes
+
+            # Log final status for this link
             if success:
                 print(f"Successfully processed {product_id}: {url}")
                 if not details_opened:
@@ -171,19 +210,35 @@ def process_links_from_file(input_file, output_folder="output", retries=3, delay
                 else:
                     report.pass_product(product_id)
             else:
-                print(f"Failed to process {product_id} after all attempts: {url}")
-                report.fail_product(product_id, last_error)
-                
-            # Wait between links to avoid overloading the server
-            if i < len(links):
-                wait_time = 5 + (random.random() * 10)  # 5-15 second wait between links
-                print(f"Waiting {wait_time:.1f} seconds before next link...")
+                print(f"Failed to process {product_id} after {retries} attempts: {url}")
+                report.fail_product(product_id, f"All {retries} attempts failed. Last error: {last_error}")
+
+            # Wait between links (only if there are more links *to process*)
+            # Check if this is the last *selected* link or the last overall link
+            remaining_links_to_process = False
+            if selected_indices:
+                # Check if there are higher indices in the selection
+                if any(sel_idx > i for sel_idx in selected_indices):
+                    remaining_links_to_process = True
+            elif i < len(links): # If not selecting, check if it's the last link overall
+                 remaining_links_to_process = True
+
+            if remaining_links_to_process:
+                wait_time = 5 + (random.random() * 10) # 5-15 second wait between links
+                print(f"\nWaiting {wait_time:.1f} seconds before next link...")
                 time.sleep(wait_time)
-                
+
+        if processed_count == 0 and selected_indices:
+             print(f"\nWarning: No links matched the selection criteria: {selected_indices}")
+
+    except FileNotFoundError:
+         print(f"Error: Input file '{input_file}' not found.")
+         report.fail_product("File Loading", f"Input file '{input_file}' not found.") # Log failure
     except Exception as e:
-        print(f"Error processing links: {e}")
-        
-    # Print the report summary only if requested
+        print(f"Error processing links file '{input_file}': {e}")
+        report.fail_product("File Processing", f"Error processing links file '{input_file}': {e}") # Log failure
+
+    # Print the report summary only if requested (usually handled by main.py now)
     if print_summary:
         report.print_summary()
         report.save_report(output_folder)
