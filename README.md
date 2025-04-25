@@ -1,4 +1,4 @@
-# APEC Water Audit Automation Tool
+# Audit Automation Tool
 
 This tool automates the process of auditing product listings on retailer websites. It captures screenshots, extracts text, analyzes the content using Gemini AI, and outputs the results to a CSV file.
 
