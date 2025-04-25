@@ -48,11 +48,11 @@ Provide the extracted information in the EXACT format shown below:
 * **Category:** Extract the most specific product category listed (e.g., from breadcrumbs).
 * **SKU:** Extract the value explicitly labeled as "Model #".
 * **Retailer:** Identify the name of the retailer/website.
-* **Images Count:** First locate the vertical list of product thumbnails left of the expanded product image at the top, count the number of thumbnails in that column. Do not count the big thumbnail, a graphics like "+X", or a thumbnail with a play button (a grey circle with a white triangle). Then, look for a graphics like "+X" (e.g., "+7") below that list, when present. Lastly, add the two numbers for the image count. Only provide the numeric value (e.g., "5").
+* **Images Count:** Count the number of product images located at the top of the page (above similar items section). DO NOT count the product images with a play button at the center (grey background with a white circle and a triangle).
 * **Images Visible Issues?:** Evaluate and answer EXACTLY "Yes" or "No". Default to "No".
-* **Video Count:** Locate the vertical list of product images left of the expanded product image at the top, count the number of images with a play button (a grey circle with a white triangle) for video count. If none are mentioned, the count is 0. Only provide the numeric value (e.g., "1").
+* **Video Count:** Count the number of product images WITH a play button at the center (grey background with a white circle and a triangle)located at the top of the page (above similar items section). 
 * **Video Visible Issues?:** Evaluate and answer EXACTLY "Yes" or "No". Default to "No".
-* **A+ Content Type:** Examine the enhanced content section below the main description that contains generic images and descriptions about the company ("About This Product"). If present, use EXACTLY "Basic". If not present, use EXACTLY "None".
+* **A+ Content Type:** Examine the enhanced content section below "Overview" that contains generic images and descriptions about the company. If present, use EXACTLY "Basic". If not present, use EXACTLY "None".
 * **A+ Content Accuracy?:** Evaluate and answer EXACTLY "Yes", "No", or "NA" if not present. Default to "Yes".
 * **Title Actual:** Extract the exact text of the main product title line, excluding any separate brand name listed above it.
 * **Title Accuracy?:** Evaluate and answer EXACTLY "Yes" or "No". Default to "Yes".

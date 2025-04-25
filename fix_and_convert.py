@@ -5,7 +5,7 @@ import re
 import csv
 import shutil
 from datetime import datetime
-from reporting_utils import report
+from core.reporting_utils import report
 
 def fix_analysis_files(folder_path, print_summary=False):
     """
@@ -16,7 +16,7 @@ def fix_analysis_files(folder_path, print_summary=False):
         print_summary: Whether to print and save report summary at the end
     """
     # Import reporting utility
-    from reporting_utils import report
+    from core.reporting_utils import report
     
     # Define the expected fields in the correct order
     expected_fields = [
@@ -290,7 +290,7 @@ def main():
     args = parser.parse_args()
     
     # Import reporting utility
-    from reporting_utils import report
+    from core.reporting_utils import report
     
     print(f"\n{'='*80}")
     print(f"STARTING FILE PROCESSING: {args.folder}")
